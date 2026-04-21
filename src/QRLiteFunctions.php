@@ -2,15 +2,13 @@
 
 namespace MediaWiki\Extension\QRLite;
 
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelLow;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelMedium;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelQuartile;
-use Endroid\QrCode\QrCode;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
 use Exception;
-use Html;
+use MediaWiki\Html\Html;
 
 /**
  * The actual QRLite Functions
@@ -29,8 +27,8 @@ class QRLiteFunctions {
 	 */
 	public static function generateQRCode( $params = [] ) {
 		// Dependency check.
-		if ( !class_exists( QrCode::class ) ) {
-			return Html::errorBox( 'QRLite error: QrCode class not found, you may need to run "composer install".' );
+		if ( !class_exists( Builder::class ) ) {
+			return Html::errorBox( 'QRLite error: Builder class not found, you may need to run "composer install".' );
 		}
 
 		// Defaults and escaping
@@ -44,18 +42,18 @@ class QRLiteFunctions {
 		$ecc = (int)self::paramGet( $params, 'ecc', 2 );
 
 		// TODO: Doesn't seem to work
-		$eccLevel = new ErrorCorrectionLevelMedium();
+		$eccLevel = ErrorCorrectionLevel::Medium;
 		if ( $ecc === 1 ) {
-			$eccLevel = new ErrorCorrectionLevelLow();
+			$eccLevel = ErrorCorrectionLevel::Low;
 		} else {
 			if ( $ecc === 2 ) {
-				$eccLevel = new ErrorCorrectionLevelMedium();
+				$eccLevel = ErrorCorrectionLevel::Medium;
 			} else {
 				if ( $ecc === 3 ) {
-					$eccLevel = new ErrorCorrectionLevelQuartile();
+					$eccLevel = ErrorCorrectionLevel::Quartile;
 				} else {
 					if ( $ecc === 4 ) {
-						$eccLevel = new ErrorCorrectionLevelHigh();
+						$eccLevel = ErrorCorrectionLevel::High;
 					}
 				}
 			}
@@ -63,20 +61,24 @@ class QRLiteFunctions {
 
 		$image = '';
 		try {
-			$qrCode = new QrCode( $content );
-			$qrCode->setSize( $size * 30 );
-			$qrCode->setMargin( $margin );
-			$qrCode->setErrorCorrectionLevel( $eccLevel );
 			$writer = $format === 'svg' ? new SvgWriter() : new PngWriter();
 			$writerOptions = [
 				SvgWriter::WRITER_OPTION_EXCLUDE_XML_DECLARATION => true
 			];
-			$result = $writer->write( $qrCode, null, null, $writerOptions );
+			$qrCode = ( new Builder(
+				writer: $writer,
+				writerOptions: $writerOptions,
+				data: $content,
+				encoding: new Encoding( 'UTF-8' ),
+				size: $size * 30,
+				margin: $margin,
+				errorCorrectionLevel: $eccLevel,
+			) )->build();
 
 			if ( $format === 'svg' ) {
-				$image = '<span class="svg-container" title="' . $content . '">' . $result->getString() . '</span>';
+				$image = '<span class="svg-container" title="' . $content . '">' . $qrCode->getString() . '</span>';
 			} else {
-				$image = Html::element( 'img', [ 'src' => $result->getDataUri(), 'title' => $content ] );
+				$image = Html::element( 'img', [ 'src' => $qrCode->getDataUri(), 'title' => $content ] );
 			}
 		} catch ( Exception $e ) {
 			$image = '<span class="error-message">' . $e->getMessage() . '</span>';
