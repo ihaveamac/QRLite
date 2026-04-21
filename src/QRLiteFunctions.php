@@ -65,15 +65,15 @@ class QRLiteFunctions {
 			$writerOptions = [
 				SvgWriter::WRITER_OPTION_EXCLUDE_XML_DECLARATION => true
 			];
-			$qrCode = ( new Builder(
-				writer: $writer,
-				writerOptions: $writerOptions,
-				data: $content,
-				encoding: new Encoding( 'UTF-8' ),
-				size: $size * 30,
-				margin: $margin,
-				errorCorrectionLevel: $eccLevel,
-			) )->build();
+			$qrCode = Builder::create()
+				->writer( $writer )
+				->writerOptions( $writerOptions )
+				->data( $content )
+				->encoding( new Encoding( 'UTF-8' ) )
+				->size( $size * 30 )
+				->margin( $margin )
+				->errorCorrectionLevel( $eccLevel )
+				->build();
 
 			if ( $format === 'svg' ) {
 				$image = '<span class="svg-container" title="' . $content . '">' . $qrCode->getString() . '</span>';
